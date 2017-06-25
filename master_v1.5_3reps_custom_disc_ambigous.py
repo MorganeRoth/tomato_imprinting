@@ -2,7 +2,7 @@
 # Python 2.6
 # master_v1.5_3reps_custom_disc_ambigous.py
 # Morgane Roth, Ana Marcela Florez-Rueda, Mathias Scharmann, PEG Integrative Biology, ETH Zürich 
-# 01 October 2015
+# January 2016
 
 # example usage:
 # python /gdc_home4/morgane/softwares/master_v1.5_3reps_custom_disc_ambigous.py \
