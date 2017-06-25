@@ -1,0 +1,134 @@
+#!/usr/local/bin/python
+# Python 2.6
+# clean_perl_annotation_ITAG2.4.py, adapted from https://github.com/anaflo/tomato "clean-annotation" script
+# Mathias Scharmann, Ana Marcela Florez-Rueda, Morgane Roth, PEG Integrative Biology, ETH Zürich 
+# January 2016
+
+# example usage:
+# python clean_perl_annotation_ITAG2.4.py --perl_annot LA2185A_LA2744B_minA2_mincov5_rc.annotated.txt
+	
+import os
+import sys
+import argparse
+import numpy
+ 
+class Printer():
+	"""
+	Print things to stdout on one line dynamically
+	"""
+	def __init__(self,data):
+ 
+		sys.stdout.write("\r\x1b[K"+data.__str__())
+		sys.stdout.flush()
+
+# check input files
+def extant_file(x):
+	"""
+	'Type' for argparse - checks that file exists but does not open.
+	"""
+	
+	if not os.path.exists(x):
+		print "Error: {0} does not exist".format(x)
+		exit()
+	x = str(x)
+	return x
+
+
+# check non-UNIX linebreaks 
+def linebreak_check(x):
+
+	if "\r" in open(x, "rb").readline():
+		print "Error: classic mac (CR) or DOS (CRLF) linebreaks in {0}".format(x)
+		exit()
+	
+# check arguments in the command line
+def get_commandline_arguments ():
+	
+	parser = argparse.ArgumentParser()
+		
+	parser.add_argument("--perl_annot", required=True, type=extant_file,
+		help="name / path of perl annotation file", metavar="FILE")
+
+	
+	args = parser.parse_args()
+	
+	linebreak_check(args.perl_annot)
+
+	return args
+	
+#############
+
+def read_to_2dimlist (file):
+	
+	data = []
+	count = 0
+	with open(file, "r") as INFILE:
+		for line in INFILE:
+			data.append(line.strip("\n").split("\t"))
+			count += 1
+	print "infile sites:	", count
+		
+	return data
+
+###########
+			 	
+def make_gene_dict_for_sites(inlist):
+	
+	outdict = {}
+	non_annot_counter = 0
+	for line in inlist:
+		siteID = "\t".join([line[0], line[1]])
+		linestring = "".join(line)
+		if "Name=" in linestring:
+			gene = linestring.split("Name=")[1].lstrip(';').split(';')[0]
+		elif "oId" in linestring:
+			gene = linestring.split("oId")[1].lstrip(" \"").split("\"")[0]
+		else:
+			non_annot_counter += 1
+			gene = "na_site_{0}".format(non_annot_counter)	
+		outdict[siteID] = gene
+	
+	return outdict
+
+
+def write_annotation_to_file (outdict, outfilename):
+	
+	outheader = ["chrom", "site", "gene_name"]
+	outlines = ["\t".join(outheader)]
+	for siteID in sorted(outdict.keys()):
+		chrom = siteID.split("\t")[0]
+		site = siteID.split("\t")[1]
+
+		gene_name = outdict[siteID]
+		outlines.append("\t".join([chrom, site, gene_name]))
+	
+	with open (outfilename, "w") as OUTFILE:
+		OUTFILE.write("\n".join(outlines))
+	
+########################
+
+######### MAIN ########
+
+def main(argv=None):
+	if argv is None:
+		argv = sys.argv[1:]
+		
+	args = 	get_commandline_arguments ()
+	
+	annot_data = read_to_2dimlist (args.perl_annot)
+	
+	clean_dict = make_gene_dict_for_sites (annot_data)
+	
+	# make sensible outfilename
+	if "/" in args.perl_annot:
+		a_file = args.endo_a.split("/")[-1]
+	else:
+		a_file = args.perl_annot
+		
+	write_annotation_to_file (clean_dict, "{0}.cleaned.txt".format(a_file))
+		
+	print "Done!"
+	
+	
+if __name__ == "__main__": 
+	main(sys.argv[1:])
